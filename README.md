@@ -5,7 +5,7 @@ This project provides a bare-metal environment for practicing FAT32 filesystem i
 ## Prerequisites
 
 - `qemu-system-aarch64`
-- `aarch64-none-elf-gcc` toolchain
+- `aarch64-linux-gnu` toolchain
 - `make`
 - `mkfs.vfat` (usually available in `dosfstools` or a similar package)
 
