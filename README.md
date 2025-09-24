@@ -12,8 +12,12 @@ This project provides a bare-metal environment for practicing FAT32 filesystem i
 ## Structure
 
 - `src/boot.S`: Minimal assembly bootloader. Sets up the stack and jumps to `main`.
-- `src/main.c`: Your main workspace. Contains UART initialization and stubs for your FAT32 code.
+- `src/main.c`: The main kernel entry point. Contains high-level logic and calls to subsystems.
+- `src/uart.c`: Implements basic UART (serial) communication functions for console output.
+- `include/gpio.h`: Header file for GPIO (General Purpose Input/Output) pin definitions and functions.
+- `include/uart.h`: Header file for UART (serial) communication definitions and function prototypes.
 - `linker.ld`: Linker script to place the kernel at the correct memory address (`0x80000`).
+  - **Important Note:** The order inside the `.text` section of the linker script is critical. The boot code (from the `.text.boot` section) must be placed *first* to ensure the CPU starts at the `_start` label. A simple `*(.text*)` wildcard is not enough as it does not guarantee this order. The correct method is to explicitly place the boot section first, e.g., `KEEP(*(.text.boot))`, before including other text sections.
 - `Makefile`: Automates the build process.
 - `run.sh`: Creates a 10MB FAT32 disk image (`fat32.img`) and launches QEMU.
 
