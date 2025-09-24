@@ -21,6 +21,7 @@ KERNEL = kernel8.img
 ELF = kernel.elf
 LINKER = linker.ld
 
+
 # Compiler and Linker flags
 CFLAGS = -Wall -ffreestanding -nostdinc -nostdlib -Iinclude -g
 # ASFLAGS =
@@ -31,20 +32,27 @@ LDFLAGS = -nostdlib -g
 all: $(KERNEL)
 
 $(KERNEL): $(ELF)
+	@echo "Creating $@ ..."
 	$(OBJCOPY) -O binary $(ELF) $(KERNEL)
 
 $(ELF): $(OBJS) $(ASM_OBJS)
+	@echo "Linking $@ ..."
 	$(LD) $(LDFLAGS) -T $(LINKER) -o $(ELF) $(OBJS) $(ASM_OBJS)
 
-$(OBJS): $(SRCS) 
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@echo "Compiling $< ..."
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # GCC can handle assembly files directly
-$(ASM_OBJS): $(ASMS)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.S
+	@echo "Assembling $< ..."
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJS) $(ELF) $(KERNEL) fat32.img
+	rm -f $(OBJS) $(ASM_OBJS) $(ELF) $(KERNEL) fat32.img
 
 run: all
 	@bash run.sh
+
+debug: all
+	@bash debug.sh
