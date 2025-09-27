@@ -27,7 +27,9 @@ qemu-system-aarch64 \
     -serial stdio \
     -drive file=$DISK_IMG,format=raw,id=hd,if=none \
     -device usb-storage,drive=hd \
-    -display none
+    -display none \
+    -S \
+    -s
     # nographic flag will direct output to stdio, thus a contentation with
     # -serial stdio. Instead, we use -display none to disable graphical output.
     # -nographic
