@@ -1,6 +1,16 @@
 #ifndef USB_H
 #define USB_H
 
+#include "types.h"
+// From BCM2835 15.USB section
+#define USB_BASE        (MMIO_BASE + 0x980000)
+#define USB_MDIO_CNTL   (USB_BASE + 0x080)      // MDIO interface control
+#define USB_MDIO_GEN    (USB_BASE + 0x084)      // Data for MDIO interface  
+#define USB_MDIO_DRV    (USB_BASE + 0x088)
+// From https://github.com/rsta2/uspi/blob/master/include/uspi/dwhci.h#L97
+// The DWC2 USB controller registers, we need to go to synopsys documentation for details
+// (which need a registration to access)
+#define DWHCI_CORE_VENDOR_ID (USB_BASE + 0x040)
 /**
  * @brief Initializes the USB controller.
  * 
@@ -11,6 +21,11 @@
  * A good reference is the USPi library (rsta2/uspi on GitHub).
  */
 void usb_init();
+int PowerOnUSB();
+boolean DeviceInitCore();
+boolean DeviceInitHost();
+boolean DeviceEnableRootPort();
+boolean DeviceInitRootPort();
 
 /**
  * @brief Reads a single block from a USB mass storage device.

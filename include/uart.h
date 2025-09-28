@@ -39,5 +39,6 @@ void uart_putc(char c);
 unsigned int uart_puts(const char *str);
 unsigned char uart_getc(void);
 unsigned int uart_gets(char *buf, char **argv);
+void uart_itoa(int num);
 
 #endif // UART_H

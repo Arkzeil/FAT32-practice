@@ -87,3 +87,29 @@ unsigned char uart_getc(void) {
     r = (char)(*AUX_MU_IO_REG);
     return r == '\r' ? '\n' : r; // convert CR to LF
 }
+
+void uart_itoa(int num){
+    char str[12];
+    int i = 0;
+    int j = 0;
+    int is_negative = 0;
+
+    if(num < 0){
+        is_negative = 1;
+        num = -num;
+    }
+
+    do{
+        str[i++] = num % 10 + '0';
+        num /= 10;
+    }while(num);
+
+    if(is_negative)
+        str[i++] = '-';
+
+    str[i] = '\0';
+
+    for(j = i - 1; j >= 0; j--){
+        uart_putc(str[j]);
+    }
+}

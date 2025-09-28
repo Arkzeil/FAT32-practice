@@ -2,7 +2,7 @@
 #define GPIO_H
 
 // The GPIO registers base address.
-// Check BCM2835 section 1.2.3 
+// Check BCM2835 section 1.2.3 for 7E000000 -> 3F000000
 // Check p.90 of BCM2837 doc
 #define MMIO_BASE   0x3F000000 // 0x3F200000 for raspi2 & 3, 0x20200000 for raspi1
 // GPIO Function Select n

@@ -1,9 +1,70 @@
+#include "gpio.h"
 #include "uart.h"
 #include "usb.h"
 
 void usb_init() {
     uart_puts("TODO: Initialize USB...\r\n");
     // TODO: Implement USB initialization logic here.
+    if(mmio_read(DWHCI_CORE_VENDOR_ID) == 0x4F54280A) {
+        uart_puts("DWC2 USB controller detected.\r\n");
+    } else {
+        uart_puts("No DWC2 USB controller detected!\r\n");
+        uart_puts("Vendor ID: ");
+        uart_itoa(mmio_read(DWHCI_CORE_VENDOR_ID));
+        uart_puts("\r\n");
+    }
+
+    if(PowerOnUSB())
+        uart_puts("USB powered on successfully.\r\n");
+    else
+        uart_puts("Failed to power on USB.\r\n");
+
+    if(DeviceInitCore())
+        uart_puts("USB device core initialized successfully.\r\n");
+    else
+        uart_puts("Failed to initialize USB device core.\r\n");
+
+
+    if(DeviceInitHost())
+        uart_puts("USB host initialized successfully.\r\n");
+    else
+        uart_puts("Failed to initialize USB host.\r\n");
+
+    if(DeviceEnableRootPort())
+        uart_puts("USB root port enabled successfully.\r\n");
+    else
+        uart_puts("Failed to enable USB root port.\r\n");
+
+    if(DeviceInitRootPort())
+        uart_puts("USB root port initialized successfully.\r\n");
+    else
+        uart_puts("Failed to initialize USB root port.\r\n");
+}
+
+int PowerOnUSB() {
+    uart_puts("TODO: Power on USB...\r\n");
+    // It should use mailbox to set the power state of USB
+    return 0;
+}
+
+boolean DeviceInitCore() {
+    uart_puts("TODO: Initialize USB device core...\r\n");
+    return true;
+}
+
+boolean DeviceInitHost() {
+    uart_puts("TODO: Initialize USB host...\r\n");
+    return true;
+}
+
+boolean DeviceEnableRootPort() {
+    uart_puts("TODO: Enable USB root port...\r\n");
+    return true;
+}
+
+boolean DeviceInitRootPort() {
+    uart_puts("TODO: Initialize USB root port...\r\n");
+    return true;
 }
 
 int read_block(unsigned int block_lba, unsigned char* buffer) {
