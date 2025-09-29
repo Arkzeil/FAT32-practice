@@ -1,5 +1,6 @@
 #include "gpio.h"
 #include "uart.h"
+#include "mailbox.h"
 #include "usb.h"
 
 void usb_init() {
@@ -14,10 +15,7 @@ void usb_init() {
         uart_puts("\r\n");
     }
 
-    if(PowerOnUSB())
-        uart_puts("USB powered on successfully.\r\n");
-    else
-        uart_puts("Failed to power on USB.\r\n");
+    PowerOnUSB();
 
     if(DeviceInitCore())
         uart_puts("USB device core initialized successfully.\r\n");
@@ -41,30 +39,30 @@ void usb_init() {
         uart_puts("Failed to initialize USB root port.\r\n");
 }
 
-int PowerOnUSB() {
-    uart_puts("TODO: Power on USB...\r\n");
+void PowerOnUSB() {
+    // uart_puts("TODO: Power on USB...\r\n");
     // It should use mailbox to set the power state of USB
-    return 0;
+    set_power(USB_DEVICE_ID, POWER_STATE_ON | POWER_STATE_WAIT);
 }
 
 boolean DeviceInitCore() {
-    uart_puts("TODO: Initialize USB device core...\r\n");
-    return true;
+    // uart_puts("TODO: Initialize USB device core...\r\n");
+    return false;
 }
 
 boolean DeviceInitHost() {
-    uart_puts("TODO: Initialize USB host...\r\n");
-    return true;
+    // uart_puts("TODO: Initialize USB host...\r\n");
+    return false;
 }
 
 boolean DeviceEnableRootPort() {
-    uart_puts("TODO: Enable USB root port...\r\n");
-    return true;
+    // uart_puts("TODO: Enable USB root port...\r\n");
+    return false;
 }
 
 boolean DeviceInitRootPort() {
-    uart_puts("TODO: Initialize USB root port...\r\n");
-    return true;
+    // uart_puts("TODO: Initialize USB root port...\r\n");
+    return false;
 }
 
 int read_block(unsigned int block_lba, unsigned char* buffer) {

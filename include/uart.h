@@ -40,5 +40,7 @@ unsigned int uart_puts(const char *str);
 unsigned char uart_getc(void);
 unsigned int uart_gets(char *buf, char **argv);
 void uart_itoa(int num);
+// binary to hex, only for mailbox
+void uart_b2x(unsigned int b);
 
 #endif // UART_H

@@ -113,3 +113,17 @@ void uart_itoa(int num){
         uart_putc(str[j]);
     }
 }
+
+void uart_b2x(unsigned int b){
+    int i;
+    unsigned int t;
+    uart_puts("0x");
+    // take [32,29] then [28,25] ...
+    for(i = 28; i >=0; i-=4){
+        // '0' = 0x30 and 0x37 + 10 = 'A'
+        // thus convert to ASCII
+        t = (b >> i) & 0xF;
+        t += (t > 9 ? 0x37:0x30);
+        uart_putc(t);
+    }
+}

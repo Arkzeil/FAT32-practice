@@ -11,6 +11,15 @@
 // The DWC2 USB controller registers, we need to go to synopsys documentation for details
 // (which need a registration to access)
 #define DWHCI_CORE_VENDOR_ID (USB_BASE + 0x040)
+
+#define USB_HOST_ID        0x0
+#define USB_HCD_ID         0x1
+#define USB_OTG_ID         0x2
+#define USB_DEVICE_ID      0x3 
+
+#define POWER_STATE_OFF      0x0
+#define POWER_STATE_ON       0x1
+#define POWER_STATE_WAIT     0x2
 /**
  * @brief Initializes the USB controller.
  * 
@@ -21,7 +30,7 @@
  * A good reference is the USPi library (rsta2/uspi on GitHub).
  */
 void usb_init();
-int PowerOnUSB();
+void PowerOnUSB();
 boolean DeviceInitCore();
 boolean DeviceInitHost();
 boolean DeviceEnableRootPort();
