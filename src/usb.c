@@ -47,7 +47,49 @@ void PowerOnUSB() {
 
 boolean DeviceInitCore() {
     // uart_puts("TODO: Initialize USB device core...\r\n");
-    return false;
+    unsigned int USBConfig = mmio_read(DWHCI_CORE_USB_CFG);
+    USBConfig &= ~DWHCI_CORE_USB_CFG_ULPI_EXT_VBUS_DRV; // Clear ULPI external VBUS drive
+    USBConfig &= ~DWHCI_CORE_USB_CFG_TERM_SEL_DL_PULSE;  // Set Termination select for DL pulse
+    mmio_write(DWHCI_CORE_USB_CFG, USBConfig);
+
+    DeviceReset(1000000); // 1 second timeout
+
+    USBConfig = mmio_read(DWHCI_CORE_USB_CFG);
+    USBConfig &= ~DWHCI_CORE_USB_CFG_ULPI_UTMI_SEL; // Select UTMI+PHY interface
+    USBConfig &= ~DWHCI_CORE_USB_CFG_PHYIF; // Set PHY interface
+    mmio_write(DWHCI_CORE_USB_CFG, USBConfig);
+
+    unsigned int HWConfig2 = mmio_read(DWHCI_CORE_HW_CFG2);
+    if(DWHCI_CORE_HW_CFG2_ARCHITECTURE(HWConfig2) != 2) { // Check architecture
+        uart_puts("USB controller architecture is not supported!\r\n");
+        return false;
+    }
+    HWConfig2 = mmio_read(DWHCI_CORE_HW_CFG2); // Read again
+    // check PHY types
+    if(DWHCI_CORE_HW_CFG2_HS_PHY_TYPE(HWConfig2) == DWHCI_CORE_HW_CFG2_HS_PHY_TYPE_UTMI_ULPI &&
+        DWHCI_CORE_HW_CFG2_FS_PHY_TYPE(HWConfig2) == DWHCI_CORE_HW_CFG2_FS_PHY_TYPE_DEDICATED) 
+    {
+        HWConfig2 |= DWHCI_CORE_USB_CFG_ULPI_FSLS; // Set ULPI FS/LS select
+        HWConfig2 |= DWHCI_CORE_USB_CFG_ULPI_CLK_SUS_M; // Set ULPI clock suspendMode
+    }
+    else{
+        HWConfig2 &= ~DWHCI_CORE_USB_CFG_ULPI_FSLS; // Clear ULPI FS/LS select
+        HWConfig2 &= ~DWHCI_CORE_USB_CFG_ULPI_CLK_SUS_M; // Clear ULPI clock suspendMode
+    }
+    mmio_write(DWHCI_CORE_USB_CFG, HWConfig2);
+
+    unsigned int AHBConfig = mmio_read(DWHCI_CORE_AHB_CFG);
+    AHBConfig |= DWHCI_CORE_AHB_CFG_DMAENABLE;            // Enable DMA
+    AHBConfig |= DWHCI_CORE_AHB_CFG_WAIT_AXI_WRITES;      // Wait for AXI writes
+    AHBConfig &= ~DWHCI_CORE_AHB_CFG_MAX_AXI_BURST__MASK; // Clear max AXI burst
+    mmio_write(DWHCI_CORE_AHB_CFG, AHBConfig);
+
+    USBConfig = mmio_read(DWHCI_CORE_USB_CFG);
+    USBConfig &= ~DWHCI_CORE_USB_CFG_HNP_CAPABLE; // Clear HNP capable
+    USBConfig &= ~DWHCI_CORE_USB_CFG_SRP_CAPABLE; // Clear SRP capable
+    mmio_write(DWHCI_CORE_USB_CFG, USBConfig);
+
+    return true;
 }
 
 boolean DeviceInitHost() {
@@ -63,6 +105,32 @@ boolean DeviceEnableRootPort() {
 boolean DeviceInitRootPort() {
     // uart_puts("TODO: Initialize USB root port...\r\n");
     return false;
+}
+
+boolean DeviceReset(unsigned int timeout) {
+    // uart_puts("TODO: Reset USB device...\r\n");
+    unsigned int reset = mmio_read(DWHCI_CORE_RESET);
+    // wait for AHB master IDLE
+    while((reset & DWHCI_CORE_RESET_AHB_IDLE) == 0) {
+        reset = mmio_read(DWHCI_CORE_RESET);
+        timeout--;
+        if(timeout == 0) {
+            uart_puts("Timeout waiting for AHB master IDLE\r\n");
+            return false;
+        }
+    }
+    // set core soft reset
+    mmio_write(DWHCI_CORE_RESET, 1);
+
+    while((mmio_read(DWHCI_CORE_RESET) & 1) != 0) {
+        timeout--;
+        if(timeout == 0) {
+            uart_puts("Timeout waiting for core soft reset\r\n");
+            return false;
+        }
+    }
+
+    return true;
 }
 
 int read_block(unsigned int block_lba, unsigned char* buffer) {

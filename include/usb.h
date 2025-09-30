@@ -10,7 +10,41 @@
 // From https://github.com/rsta2/uspi/blob/master/include/uspi/dwhci.h#L97
 // The DWC2 USB controller registers, we need to go to synopsys documentation for details
 // (which need a registration to access)
-#define DWHCI_CORE_VENDOR_ID (USB_BASE + 0x040)
+#define DWHCI_CORE_RESET                        (USB_BASE + 0x010)  // Core Soft Reset register
+#define DWHCI_CORE_VENDOR_ID                    (USB_BASE + 0x040)  // Vendor ID register
+#define DWHCI_CORE_USB_CFG                      (USB_BASE + 0x00C)  // USB Configuration register
+#define DWHCI_CORE_USB_CFG_PHYIF		        (1 << 3)
+#define DWHCI_CORE_USB_CFG_ULPI_UTMI_SEL        (1 << 4)
+#define DWHCI_CORE_USB_CFG_ULPI_FSLS		    (1 << 17)           // ULPI FS/LS select
+#define DWHCI_CORE_USB_CFG_ULPI_CLK_SUS_M	    (1 << 19)           // ULPI clock suspendMode
+#define DWHCI_CORE_USB_CFG_ULPI_EXT_VBUS_DRV	(1 << 20)           // ULPI external VBUS drive
+#define DWHCI_CORE_USB_CFG_TERM_SEL_DL_PULSE	(1 << 22)           // Termination select for DL pulse 
+
+
+#define DWHCI_CORE_RESET_AHB_IDLE		        (1 << 31)           // AHB Master IDLE
+
+#define DWHCI_CORE_HW_CFG2		                (USB_BASE + 0x048)	// RO
+#define DWHCI_CORE_HW_CFG2_OP_MODE(reg)			(((reg) >> 0) & 7)
+#define DWHCI_CORE_HW_CFG2_ARCHITECTURE(reg)	(((reg) >> 3) & 3)
+#define DWHCI_CORE_HW_CFG2_HS_PHY_TYPE(reg)		(((reg) >> 6) & 3)
+#define DWHCI_CORE_HW_CFG2_HS_PHY_TYPE_NOT_SUPPORTED		0
+#define DWHCI_CORE_HW_CFG2_HS_PHY_TYPE_UTMI			        1
+#define DWHCI_CORE_HW_CFG2_HS_PHY_TYPE_ULPI			        2
+#define DWHCI_CORE_HW_CFG2_HS_PHY_TYPE_UTMI_ULPI		    3
+#define DWHCI_CORE_HW_CFG2_FS_PHY_TYPE(reg)		(((reg) >> 8) & 3)
+#define DWHCI_CORE_HW_CFG2_FS_PHY_TYPE_DEDICATED		    1
+
+#define DWHCI_CORE_USB_CFG_SRP_CAPABLE 		    (1 << 8)
+#define DWHCI_CORE_USB_CFG_HNP_CAPABLE 		    (1 << 9)
+
+#define DWHCI_CORE_AHB_CFG		                (USB_BASE + 0x008)
+#define DWHCI_CORE_AHB_CFG_GLOBALINT_MASK	    (1 << 0)
+#define DWHCI_CORE_AHB_CFG_MAX_AXI_BURST__SHIFT	1		// BCM2835 only
+#define DWHCI_CORE_AHB_CFG_MAX_AXI_BURST__MASK	(3 << 1)	// BCM2835 only
+#define DWHCI_CORE_AHB_CFG_WAIT_AXI_WRITES	    (1 << 4)	// BCM2835 only
+#define DWHCI_CORE_AHB_CFG_DMAENABLE 		    (1 << 5)    // Enable DMA
+#define DWHCI_CORE_AHB_CFG_AHB_SINGLE 		    (1 << 23)   // Enable AHB single transfer modes
+
 
 #define USB_HOST_ID        0x0
 #define USB_HCD_ID         0x1
@@ -35,6 +69,7 @@ boolean DeviceInitCore();
 boolean DeviceInitHost();
 boolean DeviceEnableRootPort();
 boolean DeviceInitRootPort();
+boolean DeviceReset(unsigned int timeout);
 
 /**
  * @brief Reads a single block from a USB mass storage device.
