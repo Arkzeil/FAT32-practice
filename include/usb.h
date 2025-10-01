@@ -7,10 +7,16 @@
 #define USB_MDIO_CNTL   (USB_BASE + 0x080)      // MDIO interface control
 #define USB_MDIO_GEN    (USB_BASE + 0x084)      // Data for MDIO interface  
 #define USB_MDIO_DRV    (USB_BASE + 0x088)
+#define USB_HOST_BASE   (USB_BASE + 0x400)      // Host mode register base
+#define USB_POWER       (USB_BASE + 0xE00)      // Power and Clock Gating Control
 // From https://github.com/rsta2/uspi/blob/master/include/uspi/dwhci.h#L97
 // The DWC2 USB controller registers, we need to go to synopsys documentation for details
 // (which need a registration to access)
 #define DWHCI_CORE_RESET                        (USB_BASE + 0x010)  // Core Soft Reset register
+    #define DWHCI_CORE_RESET_RX_FIFO_FLUSH		(1 << 4)
+	#define DWHCI_CORE_RESET_TX_FIFO_FLUSH		(1 << 5)
+	#define DWHCI_CORE_RESET_TX_FIFO_NUM__SHIFT	6
+	#define DWHCI_CORE_RESET_TX_FIFO_NUM__MASK	(0x1F << 6)
 #define DWHCI_CORE_VENDOR_ID                    (USB_BASE + 0x040)  // Vendor ID register
 #define DWHCI_CORE_USB_CFG                      (USB_BASE + 0x00C)  // USB Configuration register
 #define DWHCI_CORE_USB_CFG_PHYIF		        (1 << 3)
@@ -46,6 +52,30 @@
 #define DWHCI_CORE_AHB_CFG_AHB_SINGLE 		    (1 << 23)   // Enable AHB single transfer modes
 
 
+#define DWHCI_HOST_CFG			                (USB_HOST_BASE + 0x000)
+#define DWHCI_HOST_CFG_FSLS_PCLK_SEL__SHIFT	    0
+#define DWHCI_HOST_CFG_FSLS_PCLK_SEL__MASK	    (3 << 0)
+    #define DWHCI_HOST_CFG_FSLS_PCLK_SEL_30_60_MHZ	0
+    #define DWHCI_HOST_CFG_FSLS_PCLK_SEL_48_MHZ	1
+    #define DWHCI_HOST_CFG_FSLS_PCLK_SEL_6_MHZ	2
+#define DWHCI_HOST_PORT 		                (USB_HOST_BASE + 0x040)
+	#define DWHCI_HOST_PORT_CONNECT				(1 << 0)
+	#define DWHCI_HOST_PORT_CONNECT_CHANGED		(1 << 1)
+	#define DWHCI_HOST_PORT_ENABLE				(1 << 2)
+	#define DWHCI_HOST_PORT_ENABLE_CHANGED		(1 << 3)
+	#define DWHCI_HOST_PORT_OVERCURRENT			(1 << 4)
+	#define DWHCI_HOST_PORT_OVERCURRENT_CHANGED	(1 << 5)
+	#define DWHCI_HOST_PORT_RESET				(1 << 8)
+	#define DWHCI_HOST_PORT_POWER				(1 << 12)
+	#define DWHCI_HOST_PORT_SPEED(reg)			(((reg) >> 17) & 3)
+		#define DWHCI_HOST_PORT_SPEED_HIGH		0
+		#define DWHCI_HOST_PORT_SPEED_FULL		1
+		#define DWHCI_HOST_PORT_SPEED_LOW		2
+    #define DWHCI_HOST_PORT_DEFAULT_MASK		( DWHCI_HOST_PORT_CONNECT_CHANGED \
+                                                | DWHCI_HOST_PORT_ENABLE	      \
+                                                | DWHCI_HOST_PORT_ENABLE_CHANGED  \
+                                                | DWHCI_HOST_PORT_OVERCURRENT_CHANGED)
+
 #define USB_HOST_ID        0x0
 #define USB_HCD_ID         0x1
 #define USB_OTG_ID         0x2
@@ -70,6 +100,7 @@ boolean DeviceInitHost();
 boolean DeviceEnableRootPort();
 boolean DeviceInitRootPort();
 boolean DeviceReset(unsigned int timeout);
+boolean DeviceWaitForBit(unsigned int* reg, unsigned int bit, unsigned int value, unsigned int timeout);
 
 /**
  * @brief Reads a single block from a USB mass storage device.
