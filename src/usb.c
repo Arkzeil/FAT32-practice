@@ -1,6 +1,7 @@
 #include "gpio.h"
 #include "uart.h"
 #include "mailbox.h"
+#include "timer.h"
 #include "usb.h"
 
 void usb_init() {
@@ -28,6 +29,8 @@ void usb_init() {
     else
         uart_puts("Failed to initialize USB host.\r\n");
 
+    // delay_ms(1000); // wait for a while
+
     if(DeviceEnableRootPort())
         uart_puts("USB root port enabled successfully.\r\n");
     else
@@ -52,7 +55,7 @@ boolean DeviceInitCore() {
     USBConfig &= ~DWHCI_CORE_USB_CFG_TERM_SEL_DL_PULSE;  // Set Termination select for DL pulse
     mmio_write(DWHCI_CORE_USB_CFG, USBConfig);
 
-    DeviceReset(1000000); // 1 second timeout
+    DeviceReset(100); // 1 second timeout
 
     USBConfig = mmio_read(DWHCI_CORE_USB_CFG);
     USBConfig &= ~DWHCI_CORE_USB_CFG_ULPI_UTMI_SEL; // Select UTMI+PHY interface
@@ -146,12 +149,10 @@ boolean DeviceInitHost() {
 boolean DeviceEnableRootPort() {
     // uart_puts("TODO: Enable USB root port...\r\n");
     unsigned int HostPort = mmio_read(DWHCI_HOST_PORT); // Read host port control and status
-    if(DeviceWaitForBit((unsigned int*)DWHCI_HOST_PORT, DWHCI_HOST_PORT_CONNECT, DWHCI_HOST_PORT_CONNECT, 1000000)) {
-        HostPort |= DWHCI_HOST_PORT_ENABLE; // Set port enable
-        mmio_write(DWHCI_HOST_PORT, HostPort);
-        return true;
-    }
-    return false;
+    if(!DeviceWaitForBit((unsigned int*)DWHCI_HOST_PORT, DWHCI_HOST_PORT_CONNECT, 1, 1000000)) 
+        return false;
+    
+    return true;
 }
 
 boolean DeviceInitRootPort() {
@@ -180,13 +181,20 @@ boolean DeviceReset(unsigned int timeout) {
 }
 
 boolean DeviceWaitForBit(unsigned int* reg, unsigned int bit, unsigned int value, unsigned int timeout) {
-    while(((mmio_read((long)reg) & bit) != value)) {
+    // need '?1:0' as directly take the result is not guaranteed to be 0 or 1
+    while(((mmio_read((long)reg) & bit) ? 1 : 0) != value) {
+        delay_ms(1);
+
         timeout--;
         if(timeout == 0) {
             uart_puts("Timeout waiting for bit\r\n");
+            uart_puts("\r\n");
             return false;
         }
     }
+    unsigned int reg_val = mmio_read((long)reg);
+    uart_itoa(reg_val);
+    uart_puts("\r\n");
     return true;
 }
 

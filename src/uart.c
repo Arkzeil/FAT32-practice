@@ -102,6 +102,10 @@ void uart_itoa(int num){
     do{
         str[i++] = num % 10 + '0';
         num /= 10;
+        if(i >= 11){ // prevent overflow
+            uart_puts("Error: integer overflow\r\n");
+            break;
+        }
     }while(num);
 
     if(is_negative)
