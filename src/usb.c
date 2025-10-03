@@ -152,12 +152,57 @@ boolean DeviceEnableRootPort() {
     if(!DeviceWaitForBit((unsigned int*)DWHCI_HOST_PORT, DWHCI_HOST_PORT_CONNECT, 1, 1000000)) 
         return false;
     
+    delay_ms(100); // USB 2.0 spec requires at least 100ms delay before enabling the port
+
+    HostPort = mmio_read(DWHCI_HOST_PORT);      // Read again
+    HostPort &= ~DWHCI_HOST_PORT_DEFAULT_MASK; // Clear all status change bits
+    HostPort |= DWHCI_HOST_PORT_ENABLE;         // Set port enable
+    mmio_write(DWHCI_HOST_PORT, HostPort);
+
+    delay_ms(50); // USB 2.0 spec
+
+    HostPort = mmio_read(DWHCI_HOST_PORT);      // Read again
+    HostPort &= ~DWHCI_HOST_PORT_DEFAULT_MASK; // Clear all status change bits
+    HostPort &= ~DWHCI_HOST_PORT_RESET;         // Clear port reset
+    mmio_write(DWHCI_HOST_PORT, HostPort);
+
+    delay_ms(20);                               // Usually 10-20ms is enough
+
     return true;
 }
 
 boolean DeviceInitRootPort() {
     // uart_puts("TODO: Initialize USB root port...\r\n");
-    return false;
+    USBSpeed speed = DeviceGetPortSpeed();
+    if(speed == USBSpeedUnknown) {
+        uart_puts("Unknown USB speed detected!\r\n");
+        return false;
+    }
+
+    
+    return true;
+}
+
+USBSpeed DeviceGetPortSpeed() {
+    USBSpeed speed = USBSpeedUnknown;
+
+    unsigned int HostPort = mmio_read(DWHCI_HOST_PORT); // Read host port
+
+    switch(DWHCI_HOST_PORT_SPEED(HostPort)) {
+        case DWHCI_HOST_PORT_SPEED_HIGH:
+            speed = USBSpeedHigh;
+            break;
+        case DWHCI_HOST_PORT_SPEED_FULL:
+            speed = USBSpeedFull;
+            break;
+        case DWHCI_HOST_PORT_SPEED_LOW:
+            speed = USBSpeedLow;
+            break;
+        default:
+            break;
+    }
+
+    return speed;
 }
 
 boolean DeviceReset(unsigned int timeout) {
@@ -192,9 +237,10 @@ boolean DeviceWaitForBit(unsigned int* reg, unsigned int bit, unsigned int value
             return false;
         }
     }
-    unsigned int reg_val = mmio_read((long)reg);
-    uart_itoa(reg_val);
-    uart_puts("\r\n");
+    // if the value inside reg is unsigned int and its 31st bit is 1, it will be negative if directly cast to int
+    // unsigned int reg_val = mmio_read((long)reg);
+    // uart_itoa(reg_val);
+    // uart_puts("\r\n");
     return true;
 }
 

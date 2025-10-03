@@ -84,6 +84,73 @@
 #define POWER_STATE_OFF      0x0
 #define POWER_STATE_ON       0x1
 #define POWER_STATE_WAIT     0x2
+
+typedef enum{
+    USBSpeedLow,
+    USBSpeedFull,
+    USBSpeedHigh,
+    USBSpeedUnknown
+} USBSpeed;
+
+// This only contains few PIDs from token and data packets
+// token packets: SETUP, IN, OUT
+// data packets: DATA0, DATA1
+// handshake packets: ACK, NAK, STALL, NYET
+typedef enum{
+    USBPIDSetup, 
+    USBPIDData0,
+    USBPIDData1,
+} USBPID;
+
+#define USB_DEFAULT_MAX_PACKET_SIZE 8
+typedef struct{
+    unsigned char  bLength;
+    unsigned char  bDescriptorType;
+    unsigned short bcdUSB;
+    unsigned char  bDeviceClass;
+    unsigned char  bDeviceSubClass;
+    unsigned char  bDeviceProtocol;
+    unsigned char  bMaxPacketSize0;
+    unsigned short idVendor;
+    unsigned short idProduct;
+    unsigned short bcdDevice;
+    unsigned char  iManufacturer;
+    unsigned char  iProduct;
+    unsigned char  iSerialNumber;
+    unsigned char  bNumConfigurations;
+}__attribute__((packed)) USBDeviceDescriptor;
+
+typedef struct{
+    unsigned char  bLength;
+    unsigned char  bDescriptorType;
+    unsigned short wTotalLength;
+    unsigned char  bNumInterfaces;
+    unsigned char  bConfigurationValue;
+    unsigned char  iConfiguration;
+    unsigned char  bmAttributes;
+    unsigned char  bMaxPower;
+}__attribute__((packed)) USBConfigurationDescriptor;
+
+typedef struct{
+    unsigned char  bLength;
+    unsigned char  bDescriptorType;
+    unsigned char  bInterfaceNumber;
+    unsigned char  bAlternateSetting;
+    unsigned char  bNumEndpoints;
+    unsigned char  bInterfaceClass;
+    unsigned char  bInterfaceSubClass;
+    unsigned char  bInterfaceProtocol;
+    unsigned char  iInterface;
+}__attribute__((packed)) USBInterfaceDescriptor;
+
+typedef struct{
+    unsigned char  bLength;
+    unsigned char  bDescriptorType;
+    unsigned char  bEndpointAddress;
+    unsigned char  bmAttributes;
+    unsigned short wMaxPacketSize;
+    unsigned char  bInterval;
+}__attribute__((packed)) USBEndpointDescriptor;
 /**
  * @brief Initializes the USB controller.
  * 
@@ -101,7 +168,7 @@ boolean DeviceEnableRootPort();
 boolean DeviceInitRootPort();
 boolean DeviceReset(unsigned int timeout);
 boolean DeviceWaitForBit(unsigned int* reg, unsigned int bit, unsigned int value, unsigned int timeout);
-
+USBSpeed DeviceGetPortSpeed();
 /**
  * @brief Reads a single block from a USB mass storage device.
  * 
