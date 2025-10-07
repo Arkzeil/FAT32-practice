@@ -76,14 +76,19 @@
                                                 | DWHCI_HOST_PORT_ENABLE_CHANGED  \
                                                 | DWHCI_HOST_PORT_OVERCURRENT_CHANGED)
 
-#define USB_HOST_ID        0x0
-#define USB_HCD_ID         0x1
-#define USB_OTG_ID         0x2
-#define USB_DEVICE_ID      0x3 
+#define USB_HOST_ID         0x0
+#define USB_HCD_ID          0x1
+#define USB_OTG_ID          0x2
+#define USB_DEVICE_ID       0x3 
 
 #define POWER_STATE_OFF      0x0
 #define POWER_STATE_ON       0x1
 #define POWER_STATE_WAIT     0x2
+
+// Device Addresses
+#define USB_DEFAULT_ADDRESS		    0   
+#define USB_FIRST_DEDICATED_ADDRESS	1
+#define USB_MAX_ADDRESS			    127
 
 typedef enum{
     USBSpeedLow,
@@ -102,6 +107,45 @@ typedef enum{
     USBPIDData1,
 } USBPID;
 
+typedef struct{
+    unsigned char  bmRequestType;
+    unsigned char  bRequest;
+    unsigned short wValue;
+    unsigned short wIndex;
+    unsigned short wLength;
+} SetupData;
+
+// Request Types
+#define REQUEST_OUT			    0
+#define REQUEST_IN			    0x80
+
+#define REQUEST_CLASS			0x20
+#define REQUEST_VENDOR			0x40
+
+#define REQUEST_TO_INTERFACE	1
+#define REQUEST_TO_OTHER		3
+
+// Standard Request Codes
+#define GET_STATUS			    0
+#define CLEAR_FEATURE			1
+#define SET_FEATURE			    3
+#define SET_ADDRESS			    5
+#define GET_DESCRIPTOR			6
+#define SET_CONFIGURATION		9
+#define SET_INTERFACE			11
+
+// Descriptor Types
+#define DESCRIPTOR_DEVICE		    1
+#define DESCRIPTOR_CONFIGURATION	2
+#define DESCRIPTOR_STRING		    3
+#define DESCRIPTOR_INTERFACE		4
+#define DESCRIPTOR_ENDPOINT		    5
+#define DESCRIPTOR_CS_INTERFACE	    36
+#define DESCRIPTOR_CS_ENDPOINT	    37
+
+#define DESCRIPTOR_INDEX_DEFAULT	0
+
+// see USB Mass Storage P.36
 #define USB_DEFAULT_MAX_PACKET_SIZE 8
 typedef struct{
     unsigned char  bLength;

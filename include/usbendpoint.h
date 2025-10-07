@@ -3,7 +3,6 @@
 
 #include "types.h"
 #include "usbdevice.h"
-#include "usb.h"
 
 typedef enum {
     USBEndpointTypeControl,
@@ -21,6 +20,8 @@ typedef struct{
     unsigned m_Interval; // for interrupt and isochronous endpoints
     USBPID m_NextPID; // Data Toggle PID
 } USBEndpoint;
+
+void USBEndpointInit(USBEndpoint* ep, USBDevice* device);
 
 
 
