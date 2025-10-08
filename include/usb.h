@@ -204,15 +204,9 @@ typedef struct{
  * For a Raspberry Pi, you'll likely be interacting with the DWC2 USB controller.
  * A good reference is the USPi library (rsta2/uspi on GitHub).
  */
-void usb_init();
+void usb_init(void);
 void PowerOnUSB();
-boolean DeviceInitCore();
-boolean DeviceInitHost();
-boolean DeviceEnableRootPort();
-boolean DeviceInitRootPort();
-boolean DeviceReset(unsigned int timeout);
-boolean DeviceWaitForBit(unsigned int* reg, unsigned int bit, unsigned int value, unsigned int timeout);
-USBSpeed DeviceGetPortSpeed();
+
 /**
  * @brief Reads a single block from a USB mass storage device.
  * 

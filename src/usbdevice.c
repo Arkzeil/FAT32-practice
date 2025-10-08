@@ -1,9 +1,11 @@
 #include "usbdevice.h"
 #include "usbendpoint.h"
+#include "dwcdevice.h"
 #include "allocator.h"
 #include "uart.h"
 
-void USBDeviceConstruct(USBDevice* device, USBSpeed speed, boolean split_transfer, unsigned char hub_address, unsigned char hub_port_number) {
+void USBDeviceConstruct(USBDevice* device, struct DWCDevice* host_controller, USBSpeed speed, boolean split_transfer, unsigned char hub_address, unsigned char hub_port_number) {
+    device->m_HostController = host_controller;
     device->m_Address = USB_DEFAULT_ADDRESS; // Default address
     device->m_Speed = speed;
     device->m_ControlEndpoint = 0;
