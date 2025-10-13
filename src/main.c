@@ -1,34 +1,5 @@
 #include "uart.h"
-#include "usb.h"
-// -------------------------------------------------------------------
-// Your workspace begins here
-// -------------------------------------------------------------------
-
-/**
- * @brief Initializes the FAT32 filesystem.
- * 
- * Reads the Master Boot Record (MBR) and the Volume Boot Record (VBR)
- * to locate the FATs and the root directory.
- * 
- * TODO: 
- * 1. Read block 0 (MBR).
- * 2. Parse the partition table to find the start of the FAT32 partition.
- * 3. Read the VBR of the FAT32 partition.
- * 4. Extract critical information (sectors per cluster, FAT location, etc.).
- */
-void fat32_init() {
-    uart_puts("Initializing FAT32 filesystem...\r\n");
-    
-    unsigned char block_buffer[512];
-
-    // Read the MBR
-    read_block(0, block_buffer);
-
-    // TODO: Parse MBR and find FAT32 partition
-    // TODO: Read VBR (Boot Sector) of the partition
-    // TODO: Parse VBR and store filesystem info
-}
-
+#include "my_bare_usb.h"
 
 void main() {
     uart_init();
@@ -37,8 +8,8 @@ void main() {
     uart_puts("Welcome to FAT32 Practice Kernel\r\n");
     uart_puts("----------------------------------\r\n");
 
-    usb_init();
-    fat32_init();
+    // Call the low-level USB practice function
+    practice_usb_from_scratch();
 
     uart_puts("Initialization complete. Hanging.\r\n");
 }

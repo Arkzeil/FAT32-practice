@@ -14,5 +14,6 @@
     } while (0)
 
 int align_offset(unsigned int i, unsigned int align);
+int int_to_hex(unsigned int value, char *buffer, int buffer_size);
 
 #endif // UTILS_H

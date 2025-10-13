@@ -22,7 +22,7 @@ typedef struct{
 } USBEndpoint;
 
 void USBEndpointInit(USBEndpoint* ep, USBDevice* device);
-
+USBPID USBEndpointGetNextPID(USBEndpoint* ep, boolean isStatusStage);
 
 
 #endif // USB_ENDPOINT_H

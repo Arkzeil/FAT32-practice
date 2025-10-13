@@ -6,6 +6,23 @@
 #include "timer.h"
 #include "lock.h"
 #include "allocator.h"
+#include "gpu.h"
+
+typedef enum
+{
+	StageStateNoSplitTransfer,
+	StageStateStartSplit,
+	StageStateCompleteSplit,
+	StageStatePeriodicDelay,
+	StageStateUnknown
+} TStageState;
+
+typedef enum
+{
+	StageSubStateWaitForChannelDisable,
+	StageSubStateWaitForTransactionComplete,
+	StageSubStateUnknown
+} TStageSubState;
 
 boolean DeviceInitCore(DWCDevice *dev) {
     // uart_puts("TODO: Initialize USB device core...\r\n");
@@ -148,7 +165,7 @@ boolean DeviceInitRootPort(DWCRootPort *port) {
     }
 
     ASSERT(port->m_device == NULL);
-    port->m_device = (USBDevice*)simple_malloc(sizeof(USBDevice));
+    port->m_device = (struct USBDevice*)simple_malloc(sizeof(USBDevice));
     ASSERT(port->m_device != NULL);
     
     USBDeviceConstruct(port->m_device, port->m_host, speed, false, 0, 1); // Assume not a hub, so hub address is 0 and port number is 1
@@ -284,11 +301,44 @@ boolean DWCDeviceSubmitBlockingRequest(DWCDevice* dev, USBRequest* req) {
                 uart_puts("DWCDeviceSubmitBlockingRequest: Invalid buffer length for IN control transfer.\r\n");
                 return false;
             }
+
+            if(!DWCDeviceTransferStage(dev, req, false, false) ||
+               !DWCDeviceTransferStage(dev, req, true, false) ||
+               !DWCDeviceTransferStage(dev, req, false, true)) {
+                uart_puts("DWCDeviceSubmitBlockingRequest: IN data stage failed.\r\n");
+                return false;
+            }
         }
         else{
-
+            if(req->m_BufferLength > 0){
+                // no data stage
+                if(!DWCDeviceTransferStage(dev, req, false, false) ||
+                   !DWCDeviceTransferStage(dev, req, true, true) ) {
+                    uart_puts("DWCDeviceSubmitBlockingRequest: OUT stage failed.\r\n");
+                    return false;
+                }
+            }
+            else{
+                if(!DWCDeviceTransferStage(dev, req, false, false) ||
+                   !DWCDeviceTransferStage(dev, req, false, false) || 
+                   !DWCDeviceTransferStage(dev, req, true, true) ) {
+                    uart_puts("DWCDeviceSubmitBlockingRequest: OUT data stage failed.\r\n");
+                    return false;
+                }
+            }
         }
     }
+    else{
+        ASSERT(req->m_Endpoint->m_Type == USBEndpointTypeBulk || req->m_Endpoint->m_Type == USBEndpointTypeInterrupt);
+        ASSERT(req->m_BufferLength > 0);
+
+        if(DWCDeviceTransferStage(dev, req, (req->m_Endpoint->m_DirectionIn), false) == false) {
+            uart_puts("DWCDeviceSubmitBlockingRequest: Non-control transfer stage failed.\r\n");
+            return false;
+        }
+    }
+
+    ARM_ISB(); // ensure all previous memory accesses are completed before continuing
 
     return true;
 }
@@ -319,6 +369,11 @@ boolean DWCDeviceTransferStage(DWCDevice* dev, USBRequest* req, boolean isIn, bo
         return false;
     }
 
+    while(dev->m_Waiting) {
+        // busy wait
+        // In a real implementation, you might want to yield the CPU or sleep
+    }
+
     return req->m_status;
 }   
 
@@ -339,9 +394,169 @@ boolean DWCDeviceTransferStageAsync(DWCDevice* dev, USBRequest* req, boolean isI
         return false;
     }
 
+    DWCTransferStageData* stage = &dev->m_StageData[channel];
+    DWCTransferStageDataInitialize(stage, channel, req, isIn, isStatusStage);
 
+    // Enable channel interrupts, but we don't implement interrupt handling for now
+
+    // here should be a split transaction related code, but we don't support split transfer for now
+
+    DWCDeviceStartTransaction(dev, stage);
 
     return true;
+}
+
+void DWCDeviceStartTransaction(DWCDevice *dev, DWCTransferStageData* stage) {
+    if(dev == NULL) {
+        uart_puts("DWCDeviceStartTransaction: Device is NULL.\r\n");
+        return;
+    }
+
+    if(stage == NULL) {
+        uart_puts("DWCDeviceStartTransaction: Stage is NULL.\r\n");
+        return;
+    }
+    
+    unsigned channel = stage->channel;
+    ASSERT(channel < dev->m_Channels);
+
+    unsigned int HChannel = mmio_read(DWHCI_HOST_CHAN_CHARACTER(channel));
+    // channel should be disabled before starting a new transaction
+    if(HChannel & DWHCI_HOST_CHAN_CHARACTER_ENABLE) {
+        stage->m_SubState = StageSubStateWaitForChannelDisable;
+
+        HChannel &= ~DWHCI_HOST_CHAN_CHARACTER_ENABLE;
+        HChannel |= DWHCI_HOST_CHAN_CHARACTER_DISABLE; // Disable channel
+        mmio_write(DWHCI_HOST_CHAN_CHARACTER(channel), HChannel);
+
+        // halt interrupt handling and wait for channel to be disabled
+        // TODO: implement interrupt handling
+    }
+    else{
+        DWCDeviceStartChannel(dev, stage);
+    }
+}
+
+void DWCDeviceStartChannel(DWCDevice *dev, DWCTransferStageData* stage) {
+    if(dev == NULL) {
+        uart_puts("DWCDeviceStartChannel: Device is NULL.\r\n");
+        return;
+    }
+
+    if(stage == NULL) {
+        uart_puts("DWCDeviceStartChannel: Stage is NULL.\r\n");
+        return;
+    }
+    
+    unsigned channel = stage->channel;
+    ASSERT(channel < dev->m_Channels);
+
+    stage->m_SubState = StageSubStateWaitForTransactionComplete;
+    // here should reset all pending channel interrupts, but we don't implement interrupt handling for now
+
+    unsigned int TransferSize = 0;
+    TransferSize |= (stage->m_BytesPerTransaction & DWHCI_HOST_CHAN_XFER_SIZ_BYTES__MASK);
+    TransferSize |= (stage->m_PacketsPerTransaction << DWHCI_HOST_CHAN_XFER_SIZ_PACKETS__SHIFT) & DWHCI_HOST_CHAN_XFER_SIZ_PACKETS__MASK;
+    TransferSize |= DWCTransferStageGetPID(stage) << DWHCI_HOST_CHAN_XFER_SIZ_PID__SHIFT;
+    mmio_write(DWHCI_HOST_CHAN_XFER_SIZ(channel), TransferSize);
+
+    // Set DMA address
+    mmio_write(DWHCI_HOST_CHAN_DMA_ADDR(channel), (BUS_ADDRESS((unsigned int)(unsigned int*)stage->m_BufferPtr)));
+
+    // invalidate data cache for IN transfer
+    
+    ARM_ISB(); // ensure all previous memory accesses are completed before continuing
+
+    // set split control if needed, but we don't support split transfer for now
+    unsigned int splitControl = 0;
+    mmio_write(DWHCI_HOST_CHAN_SPLIT_CTRL(channel), splitControl);
+
+    // set chnnel parameters
+    unsigned int channelChar = mmio_read(DWHCI_HOST_CHAN_CHARACTER(channel));
+    channelChar &= ~DWHCI_HOST_CHAN_CHARACTER_MAX_PKT_SIZ__MASK; // Clear max packet size
+    channelChar |= (stage->maxPacketSize & DWHCI_HOST_CHAN_CHARACTER_MAX_PKT_SIZ__MASK); // Set max packet size
+
+    channelChar &= ~DWHCI_HOST_CHAN_CHARACTER_MULTI_CNT__MASK; // Clear multi count
+    channelChar |= (1 << DWHCI_HOST_CHAN_CHARACTER_MULTI_CNT__SHIFT); // Set multi count to 1 (for full/low speed, it's always 1)
+
+    if(stage->isIn)
+        channelChar |= DWHCI_HOST_CHAN_CHARACTER_EP_DIRECTION_IN; // Set endpoint direction to IN
+    else 
+        channelChar &= ~DWHCI_HOST_CHAN_CHARACTER_EP_DIRECTION_IN; // Set endpoint direction to OUT
+
+    if(stage->speed == USBSpeedLow) 
+        channelChar |= DWHCI_HOST_CHAN_CHARACTER_LOW_SPEED_DEVICE; // Set high speed
+    else
+        channelChar &= ~DWHCI_HOST_CHAN_CHARACTER_LOW_SPEED_DEVICE; // Set full/high speed
+    
+    channelChar &= ~DWHCI_HOST_CHAN_CHARACTER_DEVICE_ADDRESS__MASK; // Clear device address
+    channelChar |= (stage->device->m_Address << DWHCI_HOST_CHAN_CHARACTER_DEVICE_ADDRESS__SHIFT); // Set device address
+
+    channelChar &= ~DWHCI_HOST_CHAN_CHARACTER_EP_TYPE__MASK; // Clear endpoint type
+    channelChar |= (DWCTransferStageGetEndpointType(stage) << DWHCI_HOST_CHAN_CHARACTER_EP_TYPE__SHIFT); // Set endpoint type
+
+    channelChar &= ~DWHCI_HOST_CHAN_CHARACTER_EP_NUMBER__MASK; // Clear endpoint number
+    channelChar |= (stage->endpoint->m_number << DWHCI_HOST_CHAN_CHARACTER_EP_NUMBER__SHIFT); // Set endpoint number
+
+    // scheduler related code should be here, but we don't implement scheduler for now
+
+    // channel interrupt handling should be here, but we don't implement interrupt handling for now
+    // unsigned int channelInt = mmio_read(DWHCI_HOST_CHAN_INT(channel));
+
+    channelChar |= DWHCI_HOST_CHAN_CHARACTER_ENABLE; // Enable channel
+    channelChar &= ~DWHCI_HOST_CHAN_CHARACTER_DISABLE; // Clear disable
+    mmio_write(DWHCI_HOST_CHAN_CHARACTER(channel), channelChar);
+}
+
+unsigned char DWCTransferStageGetPID(DWCTransferStageData* stage) {
+    ASSERT(stage != NULL);
+    ASSERT(stage->endpoint != NULL);
+
+    unsigned char pid = 0;
+
+    switch(USBEndpointGetNextPID(stage->endpoint, stage->isStatusStage)) {
+        case USBPIDData0:
+            pid = DWHCI_HOST_CHAN_XFER_SIZ_PID_DATA0;
+            break;
+        case USBPIDData1:
+            pid = DWHCI_HOST_CHAN_XFER_SIZ_PID_DATA1;
+            break;
+        case USBPIDSetup:
+            pid = DWHCI_HOST_CHAN_XFER_SIZ_PID_SETUP;
+            break;
+        default:
+            ASSERT(false); // Invalid PID
+            break;
+    }
+
+    return pid;
+}
+
+unsigned char DWCTransferStageGetEndpointType(DWCTransferStageData* stage) {
+    ASSERT(stage != NULL);
+    ASSERT(stage->endpoint != NULL);
+
+    unsigned char epType = 0;
+
+    switch(stage->endpoint->m_Type) {
+        case USBEndpointTypeControl:
+            epType = DWHCI_HOST_CHAN_CHARACTER_EP_TYPE_CONTROL;
+            break;
+        // case USBEndpointTypeIsochronous:
+        //     epType = DWHCI_HOST_CHAN_CHARACTER_EP_TYPE_ISOCHRONOUS;
+        //     break;
+        case USBEndpointTypeBulk:
+            epType = DWHCI_HOST_CHAN_CHARACTER_EP_TYPE_BULK;
+            break;
+        case USBEndpointTypeInterrupt:
+            epType = DWHCI_HOST_CHAN_CHARACTER_EP_TYPE_INTERRUPT;
+            break;
+        default:
+            ASSERT(false); // Invalid endpoint type
+            break;
+    }
+
+    return epType;
 }
 
 void DWCDeviceCompleteCallback(USBRequest* req, void *context) {
@@ -378,4 +593,58 @@ unsigned DWCAllocChannel(DWCDevice* dev) {
     uart_puts("DWCAllocChannel: No available channels.\r\n");
     
     return DWC_MAX_CHANNELS; // No available channels
+}
+
+void DWCTransferStageDataInitialize(DWCTransferStageData* stage, unsigned channel, USBRequest* req, boolean isIn, boolean isStatusStage) {
+    if(stage == NULL) {
+        uart_puts("DWCTransferStageDataInitialize: Stage is NULL.\r\n");
+        return;
+    }
+
+    if(req == NULL) {
+        uart_puts("DWCTransferStageDataInitialize: Request is NULL.\r\n");
+        return;
+    }
+
+    stage->channel = channel;
+    stage->request = req;
+    stage->isIn = isIn;
+    stage->isStatusStage = isStatusStage;
+    stage->m_State = 0;
+    stage->m_SubState = 0;
+    stage->m_TransactionState = 0;
+
+    stage->device = req->m_Endpoint->m_Device;
+    stage->endpoint = req->m_Endpoint;
+    stage->speed = stage->device->m_Speed;
+    stage->maxPacketSize = stage->endpoint->m_MaxPacketSize;
+
+    stage->m_TransferSize = req->m_BufferLength;
+    stage->m_BytesTransferred = 0;
+
+    if(!stage->isStatusStage){
+        if(USBEndpointGetNextPID(stage->endpoint, isStatusStage) == USBPIDSetup){
+            stage->m_BufferPtr = req->m_Setup;
+            stage->m_TransferSize = sizeof(SetupData);
+        }
+        else{
+            stage->m_BufferPtr = req->m_Buffer;
+            stage->m_TransferSize = req->m_BufferLength;
+        }
+        stage->m_packets = (stage->m_TransferSize + stage->maxPacketSize - 1) / stage->maxPacketSize;
+        // there should be split transfer related fields here, but we don't support split transfer for now
+        stage->m_BytesPerTransaction = stage->m_TransferSize;
+        stage->m_PacketsPerTransaction = stage->m_packets;
+    }
+    else{
+        stage->m_BufferPtr = &stage->m_DMAAlignmentBuffer;
+        stage->m_TransferSize = 0;
+        stage->m_BytesPerTransaction = 0;
+        stage->m_packets = 1;
+        stage->m_PacketsPerTransaction = 1;
+    }
+
+    ASSERT(stage->m_BufferPtr != NULL);
+    ASSERT((*(unsigned int*)stage->m_BufferPtr & 0x3) == 0); // Ensure 4-byte alignment
+    // there should be a frame scheduler (if split is set) related field here, but we don't implement scheduler for now
 }

@@ -113,6 +113,7 @@ typedef struct{
     unsigned short wValue;
     unsigned short wIndex;
     unsigned short wLength;
+    // followed by data
 } SetupData;
 
 // Request Types

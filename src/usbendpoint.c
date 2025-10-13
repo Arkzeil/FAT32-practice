@@ -1,4 +1,5 @@
 #include "usbendpoint.h"
+#include "uart.h"
 
 void USBEndpointInit(USBEndpoint* ep, USBDevice* device) {
     if(ep == NULL || device == NULL)
@@ -11,4 +12,19 @@ void USBEndpointInit(USBEndpoint* ep, USBDevice* device) {
     ep->m_MaxPacketSize = USB_DEFAULT_MAX_PACKET_SIZE; // Default max packet size for full-speed control endpoint
     ep->m_Interval = 1; // Default interval for isochronous and interrupt endpoints
     ep->m_NextPID = USBPIDSetup; // Start with SETUP PID for control endpoint
+}
+
+USBPID USBEndpointGetNextPID(USBEndpoint* ep, boolean isStatusStage) {
+    if(ep == NULL)
+        return USBPIDData0; // Default to DATA0 if endpoint is NULL
+
+    if(isStatusStage){
+        if(ep->m_Type == USBEndpointTypeControl)
+            return USBPIDData1; // Status stage uses DATA1
+        else{
+            uart_puts("Status stage is only valid for control endpoints.\r\n");
+            while(1); // Hang here for debugging
+        }
+    }
+    return ep->m_NextPID;
 }

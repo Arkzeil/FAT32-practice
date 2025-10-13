@@ -5,7 +5,7 @@ struct DWCDevice; // Forward declaration
 struct USBDevice; // Forward declaration
 
 typedef struct{
-    struct DWCDevice* m_host;
+    struct DWCDevice *m_host;
     struct USBDevice *m_device;
 } DWCRootPort;
 
